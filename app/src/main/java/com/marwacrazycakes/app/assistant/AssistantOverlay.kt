@@ -42,10 +42,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -402,7 +402,7 @@ fun AssistantOverlay(
                                 stopSpeakingAll()
                             }
                             HeaderIcon(
-                                icon = if (voiceOn) Icons.Filled.VolumeUp else Icons.Filled.VolumeOff,
+                                icon = if (voiceOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                                 label = if (voiceOn) "Mute voice" else "Turn voice on",
                             ) {
                                 if (voiceOn) stopSpeakingAll()
@@ -612,7 +612,7 @@ fun AssistantOverlay(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.Send,
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
                                     contentDescription = "Send",
                                     tint = PrimaryForeground,
                                     modifier = Modifier.size(16.dp),

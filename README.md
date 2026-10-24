@@ -27,7 +27,7 @@ same content and behave the same way.
 ## Open in Android Studio
 
 1. Install **Android Studio** with the bundled JDK 21 (the project uses the Gradle 9.6 wrapper and
-   Android Gradle Plugin 9.4.0).
+   Android Gradle Plugin 9.4.0 with its built-in Kotlin support).
 2. Install **SDK Platform 36** and **Build-Tools 36.x** from SDK Manager.
 3. Open this folder (`CrazyCakesAndroid`) as a project. Android Studio creates
    `local.properties` with `sdk.dir` if it is missing.
@@ -125,7 +125,7 @@ stay in sync with the React Native deployment.
 
 ## Validation performed
 
-- `./gradlew assembleDebug` succeeds against AGP 9.4.0, Gradle 9.6, Kotlin 2.2.10, JDK 21.
+- `./gradlew assembleDebug` succeeds against AGP 9.4.0 built-in Kotlin, Gradle 9.6, JDK 21.
 - `./gradlew lintDebug` completes with no errors (warnings are dependency/version suggestions).
 - Installed and launched on an Android 16 / API 36 emulator, in phone and 800dp tablet layouts.
 - Verified all six screens, gallery grid and pagination, image lightbox, video playback, assistant
