@@ -54,7 +54,7 @@ class SpeechController(context: Context) {
         val arabic = ARABIC.containsMatchIn(text)
         val voice = pickVoice(arabic)
         if (voice != null) speech.voice = voice
-        speech.language = if (arabic) Locale("ar", "SA") else Locale.US
+        speech.language = if (arabic) Locale.forLanguageTag("ar-SA") else Locale.US
         if (voice != null) speech.voice = voice
         speech.setSpeechRate(1.03f)
         speech.setPitch(1.1f)

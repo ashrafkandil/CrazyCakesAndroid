@@ -128,14 +128,14 @@ fun AvatarFace(mood: AvatarMood, size: Dp = 64.dp) {
             val brows = Path().apply {
                 if (mood == AvatarMood.LISTENING) {
                     moveTo(44f, 58f)
-                    quadraticBezierTo(50f, 54f, 55f, 58f)
+                    quadraticTo(50f, 54f, 55f, 58f)
                     moveTo(65f, 58f)
-                    quadraticBezierTo(70f, 54f, 76f, 58f)
+                    quadraticTo(70f, 54f, 76f, 58f)
                 } else {
                     moveTo(45f, browY)
-                    quadraticBezierTo(50f, browY - 3f, 55f, browY)
+                    quadraticTo(50f, browY - 3f, 55f, browY)
                     moveTo(65f, browY)
-                    quadraticBezierTo(70f, browY - 3f, 75f, browY)
+                    quadraticTo(70f, browY - 3f, 75f, browY)
                 }
             }
             drawPath(brows, hair, style = Stroke(width = 2f, cap = StrokeCap.Round))
@@ -153,7 +153,7 @@ fun AvatarFace(mood: AvatarMood, size: Dp = 64.dp) {
                 else -> {
                     val smile = Path().apply {
                         moveTo(51f, 83f)
-                        quadraticBezierTo(60f, 91f, 69f, 83f)
+                        quadraticTo(60f, 91f, 69f, 83f)
                     }
                     drawPath(smile, mouth, style = Stroke(width = 3f, cap = StrokeCap.Round))
                 }

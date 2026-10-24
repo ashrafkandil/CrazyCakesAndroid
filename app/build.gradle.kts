@@ -1,10 +1,8 @@
-import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -19,7 +17,7 @@ fun configValue(name: String, fallback: String): String =
 fun quoted(value: String): String =
     "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
-configure<ApplicationExtension> {
+android {
     namespace = "com.marwacrazycakes.app"
     compileSdk = 36
 
