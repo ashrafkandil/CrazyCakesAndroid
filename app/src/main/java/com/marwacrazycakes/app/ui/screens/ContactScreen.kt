@@ -2,41 +2,43 @@ package com.marwacrazycakes.app.ui.screens
 
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +46,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -51,74 +55,340 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.marwacrazycakes.app.data.AppData
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.marwacrazycakes.app.data.ContentRepository
+import com.marwacrazycakes.app.data.QuoteDraftStore
+import com.marwacrazycakes.app.data.SocialLink
+import com.marwacrazycakes.app.ui.components.AppTextField
+import com.marwacrazycakes.app.ui.components.SectionHeading
 import com.marwacrazycakes.app.ui.components.SocialPill
+import com.marwacrazycakes.app.ui.components.openDial
+import com.marwacrazycakes.app.ui.components.openEmail
 import com.marwacrazycakes.app.ui.components.rememberIsWide
+import com.marwacrazycakes.app.ui.theme.Blush
 import com.marwacrazycakes.app.ui.theme.Border
+import com.marwacrazycakes.app.ui.theme.Card
 import com.marwacrazycakes.app.ui.theme.CrimsonText
+import com.marwacrazycakes.app.ui.theme.Foreground
+import com.marwacrazycakes.app.ui.theme.Inter
+import com.marwacrazycakes.app.ui.theme.MutedForeground
+import com.marwacrazycakes.app.ui.theme.Overlay
 import com.marwacrazycakes.app.ui.theme.Primary
 import com.marwacrazycakes.app.ui.theme.PrimaryForeground
 
-private val socials = listOf(
-    "Instagram" to "https://www.instagram.com/marwacrazycakes/",
-    "TikTok" to "https://www.tiktok.com/@marwacrazycakes",
-    "X (Twitter)" to "https://x.com/marwacrazycakes",
-)
-
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ContactScreen() {
     val isWide = rememberIsWide()
-    val eventTypes = remember { AppData.eventTypes() }
+    val eventTypes = remember { ContentRepository.eventTypes() }
+    val socialLinks = remember { ContentRepository.socialLinks() }
+    val supportEmail = ContentRepository.text("contact.email")
+    val supportPhoneHref = ContentRepository.text("contact.phoneHref")
+
+    var name by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var phone by rememberSaveable { mutableStateOf("") }
+    var eventType by rememberSaveable { mutableStateOf("") }
+    var eventDate by rememberSaveable { mutableStateOf("") }
+    var servings by rememberSaveable { mutableStateOf("") }
+    var location by rememberSaveable { mutableStateOf("") }
+    var theme by rememberSaveable { mutableStateOf("") }
+    var menuOpen by remember { mutableStateOf(false) }
+    var submitted by rememberSaveable { mutableStateOf(false) }
+    var sending by remember { mutableStateOf(false) }
+    var sendError by remember { mutableStateOf<String?>(null) }
+
+    val draft by QuoteDraftStore.draft.collectAsState()
+    LaunchedEffect(draft) {
+        if (draft.isEmpty()) return@LaunchedEffect
+        draft["name"]?.takeIf { it.isNotBlank() }?.let { name = it }
+        draft["email"]?.takeIf { it.isNotBlank() }?.let { email = it }
+        draft["phone"]?.takeIf { it.isNotBlank() }?.let { phone = it }
+        draft["eventType"]?.takeIf { it in eventTypes }?.let { eventType = it }
+        draft["eventDate"]?.takeIf { it.isNotBlank() }?.let { eventDate = it }
+        draft["servings"]?.takeIf { it.isNotBlank() }?.let { servings = it }
+        draft["location"]?.takeIf { it.isNotBlank() }?.let { location = it }
+        draft["theme"]?.takeIf { it.isNotBlank() }?.let { theme = it }
+        submitted = false
+    }
+
+    val isValid = name.trim().isNotEmpty() &&
+        email.contains("@") &&
+        phone.trim().isNotEmpty() &&
+        eventType.isNotEmpty() &&
+        eventDate.trim().isNotEmpty() &&
+        servings.trim().isNotEmpty() &&
+        theme.trim().isNotEmpty()
+
+    val context = LocalContext.current
+    fun submit() {
+        if (!isValid || sending) return
+        sending = true
+        sendError = null
+        val body = listOf(
+            "Name: ${name.trim()}",
+            "Email: ${email.trim()}",
+            "Phone: ${phone.trim()}",
+            "Event type: $eventType",
+            "Event date: ${eventDate.trim()}",
+            "Servings: ${servings.trim()}",
+            "Location: ${location.trim().ifEmpty { "Not specified" }}",
+            "",
+            theme.trim(),
+        ).joinToString("\n")
+        val url = "mailto:$supportEmail" +
+            "?subject=${Uri.encode("Custom quote request \u2014 ${name.trim()} ($eventType)")}" +
+            "&body=${Uri.encode(body)}"
+        try {
+            context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse(url)))
+            QuoteDraftStore.clear()
+            submitted = true
+        } catch (_: Exception) {
+            sendError = "We could not open your email app. Email $supportEmail or call " +
+                "${ContentRepository.text("contact.phone")} to send your request."
+        } finally {
+            sending = false
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(vertical = 56.dp, horizontal = 20.dp),
+            .padding(horizontal = 20.dp, vertical = 56.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "Let\u2019s Create Something Beautiful",
-                style = TextStyle(fontFamily = CrimsonText, fontSize = 34.sp, color = Primary),
+        SectionHeading(
+            title = ContentRepository.text("contact.title"),
+            eyebrow = ContentRepository.text("contact.eyebrow"),
+        )
+        Text(
+            text = ContentRepository.text("contact.intro"),
+            style = TextStyle(
+                fontFamily = Inter,
+                fontSize = 15.sp,
+                lineHeight = 26.sp,
+                color = MutedForeground,
                 textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = "READY TO BRING YOUR VISION TO LIFE",
-                style = TextStyle(
-                    fontFamily = CrimsonText,
-                    fontSize = 11.sp,
-                    letterSpacing = 2.7.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(18.dp))
-            Text(
-                text = "Get in touch to discuss your custom cake needs. We're excited to be part " +
-                    "of your special celebration.",
-                style = TextStyle(fontSize = 15.sp, lineHeight = 26.sp, color = MaterialTheme.colorScheme.onSurfaceVariant),
-                textAlign = TextAlign.Center,
+            ),
+            modifier = Modifier.widthIn(max = 560.dp).padding(top = 18.dp),
+        )
+        Spacer(modifier = Modifier.height(44.dp))
+
+        val form = @Composable {
+            SectionCard {
+                Text(
+                    text = "Request a Custom Quote",
+                    style = TextStyle(
+                        fontFamily = CrimsonText,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 22.sp,
+                        color = Primary,
+                    ),
+                )
+                if (submitted) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 24.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Blush)
+                            .padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text(
+                            text = "Thank you!",
+                            style = TextStyle(
+                                fontFamily = com.marwacrazycakes.app.ui.theme.DancingScript,
+                                fontSize = 30.sp,
+                                color = Primary,
+                            ),
+                        )
+                        Text(
+                            text = "Your email draft is on its way to $supportEmail. " +
+                                ContentRepository.text("contact.responseNote"),
+                            style = TextStyle(
+                                fontFamily = Inter,
+                                fontSize = 14.sp,
+                                color = MutedForeground,
+                                textAlign = TextAlign.Center,
+                            ),
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.padding(top = 22.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        LabeledField("Name *", name) { name = it }
+                        LabeledField("Email *", email, keyboardType = KeyboardType.Email) { email = it }
+                        LabeledField("Phone *", phone, keyboardType = KeyboardType.Phone) { phone = it }
+
+                        Text(
+                            text = "Event Type *",
+                            style = TextStyle(
+                                fontFamily = Inter,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp,
+                                color = Foreground,
+                            ),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Border, RoundedCornerShape(8.dp))
+                                .clickable { menuOpen = true }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = eventType.ifEmpty { "Select event type" },
+                                    style = TextStyle(
+                                        fontFamily = Inter,
+                                        fontSize = 15.sp,
+                                        color = if (eventType.isEmpty()) MutedForeground else Foreground,
+                                    ),
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = MutedForeground,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+
+                        LabeledField(
+                            "Event Date * (YYYY-MM-DD)",
+                            eventDate,
+                            placeholder = "2026-10-15",
+                        ) { eventDate = it }
+                        LabeledField(
+                            "Number of Servings *",
+                            servings,
+                            keyboardType = KeyboardType.Number,
+                        ) { servings = it }
+                        LabeledField("Event/Delivery Location", location) { location = it }
+
+                        Text(
+                            text = "Tell us more about your theme! *",
+                            style = TextStyle(
+                                fontFamily = Inter,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp,
+                                color = Foreground,
+                            ),
+                        )
+                        AppTextField(
+                            value = theme,
+                            onValueChange = { theme = it },
+                            placeholder = "Describe the dream cake\u2026",
+                            singleLine = false,
+                            textAreaHeight = 110.dp,
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .alpha(if (!isValid || sending) 0.4f else 1f)
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(Primary)
+                                .clickable(enabled = isValid && !sending) { submit() }
+                                .padding(vertical = 14.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = if (sending) "Opening your email app\u2026" else "Send Inquiry",
+                                style = TextStyle(
+                                    fontFamily = Inter,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 15.sp,
+                                    color = PrimaryForeground,
+                                ),
+                            )
+                        }
+
+                        sendError?.let { message ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .border(1.dp, Primary, RoundedCornerShape(10.dp))
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Error,
+                                    contentDescription = null,
+                                    tint = Primary,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Text(
+                                    text = message,
+                                    style = TextStyle(
+                                        fontFamily = Inter,
+                                        fontSize = 13.sp,
+                                        lineHeight = 20.sp,
+                                        color = Foreground,
+                                    ),
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        val aside = @Composable {
+            ContactAside(
+                supportEmail = supportEmail,
+                supportPhoneHref = supportPhoneHref,
+                socialLinks = socialLinks,
             )
         }
-        Spacer(modifier = Modifier.height(44.dp))
 
         if (isWide) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.widthIn(max = 980.dp).fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(40.dp),
                 verticalAlignment = Alignment.Top,
             ) {
-                Box(modifier = Modifier.weight(1.3f)) { InquiryForm(eventTypes) }
-                Box(modifier = Modifier.weight(0.7f)) { ContactAside() }
+                Box(modifier = Modifier.weight(1.3f)) {
+                    Box(modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth()) { form() }
+                }
+                Box(modifier = Modifier.weight(0.7f)) { aside() }
             }
         } else {
-            InquiryForm(eventTypes)
-            Spacer(modifier = Modifier.height(40.dp))
-            ContactAside()
+            Column(
+                modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(32.dp),
+            ) {
+                form()
+                aside()
+            }
         }
+    }
+
+    if (menuOpen) {
+        EventTypeDialog(
+            eventTypes = eventTypes,
+            onSelect = {
+                eventType = it
+                menuOpen = false
+            },
+            onDismiss = { menuOpen = false },
+        )
     }
 }
 
@@ -128,7 +398,8 @@ private fun SectionCard(content: @Composable () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, shape)
+            .clip(shape)
+            .background(Card)
             .border(1.dp, Border, shape)
             .padding(24.dp),
     ) {
@@ -141,173 +412,40 @@ private fun LabeledField(
     label: String,
     value: String,
     keyboardType: KeyboardType = KeyboardType.Text,
-    singleLine: Boolean = true,
+    placeholder: String? = null,
     onValueChange: (String) -> Unit,
 ) {
-    Text(text = label, style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium))
-    Spacer(modifier = Modifier.height(6.dp))
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = singleLine,
-        minLines = if (singleLine) 1 else 4,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-    )
-}
-
-@Composable
-private fun InquiryForm(eventTypes: List<String>) {
-    var name by rememberSaveable { mutableStateOf("") }
-    var email by rememberSaveable { mutableStateOf("") }
-    var phone by rememberSaveable { mutableStateOf("") }
-    var eventType by rememberSaveable { mutableStateOf("") }
-    var eventDate by rememberSaveable { mutableStateOf("") }
-    var servings by rememberSaveable { mutableStateOf("") }
-    var location by rememberSaveable { mutableStateOf("") }
-    var attachment by rememberSaveable { mutableStateOf<String?>(null) }
-    var theme by rememberSaveable { mutableStateOf("") }
-    var submitted by rememberSaveable { mutableStateOf(false) }
-    var typeMenuOpen by rememberSaveable { mutableStateOf(false) }
-
-    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        attachment = uri?.lastPathSegment?.substringAfterLast('/')
-    }
-
-    val valid = name.isNotBlank() && "@" in email && phone.isNotBlank() &&
-        eventType.isNotBlank() && eventDate.isNotBlank() && servings.isNotBlank() && theme.isNotBlank()
-
-    SectionCard {
+    Column {
         Text(
-            text = "Request a Custom Quote",
+            text = label,
             style = TextStyle(
-                fontFamily = CrimsonText,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 22.sp,
-                color = Primary,
+                fontFamily = Inter,
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp,
+                color = Foreground,
             ),
+            modifier = Modifier.padding(bottom = 6.dp),
         )
-        if (submitted) {
-            Spacer(modifier = Modifier.height(24.dp))
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                    .padding(28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = "Thank you!",
-                    style = TextStyle(fontFamily = CrimsonText, fontSize = 28.sp, color = Primary),
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "Your inquiry is ready. We'll be in touch within 24 hours.",
-                    style = TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant),
-                )
-            }
-        } else {
-            Spacer(modifier = Modifier.height(22.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                LabeledField("Name *", name) { name = it }
-                LabeledField("Email *", email, keyboardType = KeyboardType.Email) { email = it }
-                LabeledField("Phone *", phone, keyboardType = KeyboardType.Phone) { phone = it }
-                Text(text = "Event Type *", style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium))
-                Spacer(modifier = Modifier.height(6.dp))
-                Box {
-                    OutlinedTextField(
-                        value = eventType,
-                        onValueChange = {},
-                        readOnly = true,
-                        placeholder = { Text("Select event type") },
-                        trailingIcon = {
-                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .clickable { typeMenuOpen = !typeMenuOpen },
-                    )
-                    DropdownMenu(expanded = typeMenuOpen, onDismissRequest = { typeMenuOpen = false }) {
-                        eventTypes.forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type) },
-                                onClick = {
-                                    eventType = type
-                                    typeMenuOpen = false
-                                },
-                            )
-                        }
-                    }
-                }
-                LabeledField("Event Date * (YYYY-MM-DD)", eventDate) { eventDate = it }
-                LabeledField("Number of Servings *", servings, keyboardType = KeyboardType.Number) { servings = it }
-                LabeledField("Event/Delivery Location", location) { location = it }
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.AttachFile,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Text(
-                            text = "Attach image/file (optional)",
-                            style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, Border, RoundedCornerShape(8.dp))
-                            .clickable { filePicker.launch("image/*") }
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = attachment ?: "Choose file",
-                            style = TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant),
-                        )
-                        Text(
-                            text = "Browse",
-                            style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Primary),
-                        )
-                    }
-                }
-                LabeledField("Tell us more about your theme! *", theme, singleLine = false) { theme = it }
-                Button(
-                    onClick = { submitted = true },
-                    enabled = valid,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Primary,
-                        contentColor = PrimaryForeground,
-                        disabledContainerColor = Primary.copy(alpha = 0.4f),
-                        disabledContentColor = PrimaryForeground.copy(alpha = 0.7f),
-                    ),
-                ) {
-                    Text("Send Inquiry")
-                }
-            }
-        }
+        AppTextField(
+            value = value,
+            onValueChange = onValueChange,
+            keyboardType = keyboardType,
+            placeholder = placeholder,
+        )
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ContactAside() {
+private fun ContactAside(
+    supportEmail: String,
+    supportPhoneHref: String,
+    socialLinks: List<SocialLink>,
+) {
     val context = LocalContext.current
     SectionCard {
         Text(
-            text = "Get in Touch",
+            text = ContentRepository.text("contact.sidebarHeading"),
             style = TextStyle(
                 fontFamily = CrimsonText,
                 fontWeight = FontWeight.SemiBold,
@@ -315,34 +453,48 @@ private fun ContactAside() {
                 color = Primary,
             ),
         )
-        Spacer(modifier = Modifier.height(20.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(
+            modifier = Modifier.padding(top = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             Row(
+                modifier = Modifier.clickable { openEmail(context, supportEmail) },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.clickable {
-                    context.startActivity(
-                        Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:fcabakery@gmail.com")),
-                    )
-                },
             ) {
-                Icon(Icons.Filled.Email, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                Icon(
+                    imageVector = Icons.Filled.Email,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(18.dp),
+                )
                 Text(
-                    "fcabakery@gmail.com",
-                    style = TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant),
+                    text = supportEmail,
+                    style = TextStyle(
+                        fontFamily = Inter,
+                        fontSize = 14.sp,
+                        color = MutedForeground,
+                    ),
                 )
             }
             Row(
+                modifier = Modifier.clickable { openDial(context, supportPhoneHref) },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.clickable {
-                    context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:12165718440")))
-                },
             ) {
-                Icon(Icons.Filled.Phone, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                Icon(
+                    imageVector = Icons.Filled.Phone,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(18.dp),
+                )
                 Text(
-                    "216.571.8440",
-                    style = TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant),
+                    text = ContentRepository.text("contact.phone"),
+                    style = TextStyle(
+                        fontFamily = Inter,
+                        fontSize = 14.sp,
+                        color = MutedForeground,
+                    ),
                 )
             }
             Row(
@@ -350,58 +502,146 @@ private fun ContactAside() {
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Icon(
-                    Icons.Filled.LocationOn,
+                    imageVector = Icons.Filled.LocationOn,
                     contentDescription = null,
                     tint = Primary,
                     modifier = Modifier.size(18.dp),
                 )
                 Text(
-                    text = "Chagrin Falls, OH 44022\nServing Bainbridge, Solon, Pepper Pike, " +
-                        "Twinsburg, Mayfield and nearby areas",
-                    style = TextStyle(fontSize = 14.sp, lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant),
+                    text = ContentRepository.text("contact.address") + "\n" +
+                        ContentRepository.text("contact.serviceArea"),
+                    style = TextStyle(
+                        fontFamily = Inter,
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp,
+                        color = MutedForeground,
+                    ),
                 )
             }
         }
-        Spacer(modifier = Modifier.height(28.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+
+        Column(
+            modifier = Modifier.padding(top = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.Filled.Schedule, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
-            Text(
-                "Follow Us",
-                style = TextStyle(fontFamily = CrimsonText, fontWeight = FontWeight.SemiBold, fontSize = 18.sp),
-            )
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            socials.forEach { (label, url) ->
-                SocialPill(label = label, url = url)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = ContentRepository.text("contact.followUs"),
+                    style = TextStyle(
+                        fontFamily = CrimsonText,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 18.sp,
+                        color = Foreground,
+                    ),
+                )
+            }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                socialLinks.forEach { social ->
+                    SocialPill(label = social.label, url = social.href)
+                }
             }
         }
-        Spacer(modifier = Modifier.height(28.dp))
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+                .padding(top = 28.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Blush)
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top,
         ) {
             Icon(
-                imageVector = Icons.Filled.Schedule,
+                imageVector = Icons.Filled.CalendarMonth,
                 contentDescription = null,
                 tint = Primary,
                 modifier = Modifier.size(18.dp),
             )
             Text(
-                text = "We'll respond to your inquiry within 24 hours. For urgent requests, " +
-                    "please call us directly.",
+                text = ContentRepository.text("contact.responseNote"),
                 style = TextStyle(
+                    fontFamily = Inter,
                     fontSize = 13.sp,
                     lineHeight = 20.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MutedForeground,
                 ),
+                modifier = Modifier.weight(1f),
             )
+        }
+    }
+}
+
+@Composable
+private fun EventTypeDialog(
+    eventTypes: List<String>,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Overlay)
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .background(Card)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {}
+                    .padding(24.dp)
+                    .navigationBarsPadding(),
+            ) {
+                Text(
+                    text = "Event Type",
+                    style = TextStyle(
+                        fontFamily = CrimsonText,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 18.sp,
+                        color = Primary,
+                    ),
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                eventTypes.forEachIndexed { index, type ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(type) }
+                            .padding(vertical = 14.dp),
+                    ) {
+                        Text(
+                            text = type,
+                            style = TextStyle(
+                                fontFamily = Inter,
+                                fontSize = 16.sp,
+                                color = Foreground,
+                            ),
+                        )
+                    }
+                    if (index != eventTypes.lastIndex) HorizontalDivider(color = Border)
+                }
+            }
         }
     }
 }
