@@ -1,0 +1,8 @@
+# Copy to local.properties and fill in the values.
+# local.properties is gitignored and must not be committed.
+sdk.dir=C\:\\Users\\you\\AppData\\Local\\Android\\Sdk
+GEMINI_API_KEY=
+# Optional overrides:
+# GEMINI_MODEL=gemini-flash-lite-latest
+# GEMINI_API_BASE_URL=https://generativelanguage.googleapis.com
+# MOBILE_CONTENT_URL=https://ashrafkandil.github.io/CrazyCakesMobile/mobile-content
