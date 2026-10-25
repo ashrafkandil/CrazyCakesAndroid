@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.marwacrazycakes.app.Screen
 import com.marwacrazycakes.app.data.ContentRepository
 import com.marwacrazycakes.app.ui.components.AppImage
+import com.marwacrazycakes.app.ui.components.AutoFitScriptTitle
 import com.marwacrazycakes.app.ui.components.BrandFooter
 import com.marwacrazycakes.app.ui.components.Eyebrow
 import com.marwacrazycakes.app.ui.components.PrimaryButton
@@ -127,9 +128,9 @@ fun HomeScreen(onNavigate: (Screen) -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ScriptTitle(
+            AutoFitScriptTitle(
                 text = ContentRepository.text("home.hero.title"),
-                size = if (isWide) 52.sp else 38.sp,
+                maxSize = if (isWide) 52.sp else 38.sp,
             )
             Eyebrow(text = ContentRepository.text("home.hero.tagline"))
             Text(

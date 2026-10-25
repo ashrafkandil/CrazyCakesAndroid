@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -53,8 +54,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -208,6 +211,68 @@ fun ScriptTitle(
             textAlign = textAlign,
         ),
     )
+}
+
+/**
+ * Script title that is measured before layout and shrunk until it fits on one line.
+ * The home hero must never wrap, regardless of phone/tablet width or orientation.
+ */
+@Composable
+fun AutoFitScriptTitle(
+    text: String,
+    maxSize: TextUnit,
+    modifier: Modifier = Modifier,
+    color: Color = Primary,
+    textAlign: TextAlign = TextAlign.Center,
+) {
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        val widthPx = with(LocalDensity.current) { maxWidth.toPx() }
+        val baseStyle = TextStyle(
+            fontFamily = DancingScript,
+            color = color,
+            textAlign = textAlign,
+        )
+        val fittedSize = remember(text, maxSize, widthPx, baseStyle) {
+            fun widthAt(size: Float): Int = measurer.measure(
+                text = text,
+                style = baseStyle.copy(
+                    fontSize = size.sp,
+                    lineHeight = (size * 1.25f).sp,
+                ),
+                softWrap = false,
+                maxLines = 1,
+            ).size.width
+
+            val maximum = maxSize.value
+            if (widthPx <= 0f || widthAt(maximum) <= widthPx) {
+                maximum
+            } else {
+                var low = 6f
+                var high = maximum
+                repeat(16) {
+                    val mid = (low + high) / 2f
+                    if (widthAt(mid) <= widthPx) low = mid else high = mid
+                }
+                low
+            }
+        }
+        Text(
+            text = text,
+            style = baseStyle.copy(
+                fontSize = fittedSize.sp,
+                lineHeight = (fittedSize * 1.25f).sp,
+            ),
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Visible,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = textAlign,
+        )
+    }
 }
 
 @Composable
