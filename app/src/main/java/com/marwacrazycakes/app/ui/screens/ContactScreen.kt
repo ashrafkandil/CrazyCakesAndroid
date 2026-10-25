@@ -93,7 +93,7 @@ fun ContactScreen() {
     var eventDate by rememberSaveable { mutableStateOf("") }
     var servings by rememberSaveable { mutableStateOf("") }
     var location by rememberSaveable { mutableStateOf("") }
-    var theme by rememberSaveable { mutableStateOf("") } 
+    var theme by rememberSaveable { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
     var submitted by rememberSaveable { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
