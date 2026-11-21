@@ -98,6 +98,7 @@ fun ContactScreen() {
     var submitted by rememberSaveable { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
     var sendError by remember { mutableStateOf<String?>(null) }
+    var smsSent by remember { mutableStateOf(false) }
 
     val draft by QuoteDraftStore.draft.collectAsState()
     LaunchedEffect(draft) {
@@ -144,11 +145,34 @@ fun ContactScreen() {
             context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse(url)))
             QuoteDraftStore.clear()
             submitted = true
+            // Send SMS notification to admin if enabled
+            sendSmsNotification()
         } catch (_: Exception) {
             sendError = "We could not open your email app. Email $supportEmail or call " +
                 "${ContentRepository.text("contact.phone")} to send your request."
         } finally {
             sending = false
+        }
+    }
+
+    fun sendSmsNotification() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val result = ApiClient.sendSmsNotification(
+                    name = name.trim(),
+                    eventType = eventType,
+                    eventDate = eventDate.trim()
+                )
+                if (result.isSuccess) {
+                    androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot { snapshot ->
+                        smsSent = true
+                    }
+                } else {
+                    Log.w("ContactScreen", "Failed to send SMS notification: ${result.errorMessage}")
+                }
+            } catch (e: Exception) {
+                Log.w("ContactScreen", "SMS notification failed", e)
+            }
         }
     }
 

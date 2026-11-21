@@ -59,6 +59,10 @@ object ContentRepository {
     val revision: StateFlow<Int> = _revision.asStateFlow()
     val contentVersion: StateFlow<String> = _contentVersion.asStateFlow()
 
+    fun emailNotificationsEnabled(): Boolean {
+        return cache.emailNotificationsEnabled
+    }
+
     fun isInitialized(): Boolean = initialized
 
     suspend fun init(context: Context) = withContext(Dispatchers.IO) {
@@ -448,7 +452,15 @@ object ContentRepository {
             }
         }
 
-        return ContentSnapshot(
+        // Load email notifications setting
+        val emailNotificationsEnabled = database.rawQuery(
+            "SELECT value FROM content WHERE key = 'settings.email_notifications' LIMIT 1",
+            null
+        ).use { cursor ->
+            if (cursor.moveToNext()) cursor.getString(0) == "1" else true
+        }
+
+        val snapshot = ContentSnapshot(
             categories = categories,
             images = images,
             videos = videos,
@@ -456,6 +468,7 @@ object ContentRepository {
             content = content,
             eventTypes = eventTypes,
             socialLinks = socialLinks,
+            emailNotificationsEnabled = emailNotificationsEnabled,
         )
     }
 
