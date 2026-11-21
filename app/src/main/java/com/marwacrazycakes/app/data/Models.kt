@@ -67,4 +67,5 @@ data class ContentSnapshot(
     val content: Map<String, String> = emptyMap(),
     val eventTypes: List<String> = emptyList(),
     val socialLinks: List<SocialLink> = emptyList(),
+    val emailNotificationsEnabled: Boolean = true,
 )
